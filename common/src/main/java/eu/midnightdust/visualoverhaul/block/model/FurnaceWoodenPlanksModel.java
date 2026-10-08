@@ -1,40 +1,41 @@
 package eu.midnightdust.visualoverhaul.block.model;
 
 import net.minecraft.client.model.*;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.entity.model.EntityModelLayer;
-import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.model.geom.*;
+import net.minecraft.client.model.geom.builders.*;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.model.geom.ModelLayerLocation;
+import com.mojang.blaze3d.vertex.PoseStack;
 
 import static eu.midnightdust.visualoverhaul.VisualOverhaulCommon.id;
 
-public class FurnaceWoodenPlanksModel extends Model {
-    private static ModelPart bb_main;
-    public static final EntityModelLayer WOODEN_PLANKS_MODEL_LAYER = new EntityModelLayer(id("wooden_planks"), "main");
+public class FurnaceWoodenPlanksModel {
+    private final ModelPart bb_main;
+    public static final ModelLayerLocation WOODEN_PLANKS_MODEL_LAYER = new ModelLayerLocation(id("wooden_planks"), "main");
 
     public FurnaceWoodenPlanksModel(ModelPart root) {
-        super(root, RenderLayer::getEntitySolid);
         bb_main = root;
-        bb_main.setPivot(0.0F, 24.0F, 0.0F);
+        bb_main.setPos(0.0F, 24.0F, 0.0F);
     }
     public ModelPart getPart() {
         return bb_main;
     }
 
-    public static TexturedModelData getTexturedModelData() {
-        return TexturedModelData.of(getModelData(), 16, 16);
+    public static LayerDefinition getLayerDefinition() {
+        return LayerDefinition.create(getMeshDefinition(), 16, 16);
     }
 
-    public static ModelData getModelData(){
-        ModelData modelData = new ModelData();
-        ModelPartData modelPartData = modelData.getRoot();
-        modelPartData.addChild("cube_r1", ModelPartBuilder.create().uv(0, 0).cuboid(-10.0F, -3.0F, 0.0F, 10.0F, 1.0F, 1.0F), ModelTransform.of(6.0F, 1.0F, -2.0F,0.0F, -0.5672F, 0.0F));
-        modelPartData.addChild("cube_r2", ModelPartBuilder.create().uv(0, 0).cuboid(-10.0F, -2.5F, 0.0F, 10.0F, 2.0F, 2.0F), ModelTransform.of(5.0F, 0.0F, -5.0F,0.0F, -0.1309F, 0.0F));
-        modelPartData.addChild("cube_r3", ModelPartBuilder.create().uv(0, 0).cuboid(-10.0F, -2.0F, 0.0F, 10.0F, 2.0F, 2.0F), ModelTransform.of(5.0F, -1.0F, -7.0F,0.0F, 0.2618F, 0.0F));
+    public static MeshDefinition getMeshDefinition(){
+        MeshDefinition modelData = new MeshDefinition();
+        PartDefinition modelPartData = modelData.getRoot();
+        modelPartData.addOrReplaceChild("cube_r1", CubeListBuilder.create().texOffs(0, 0).addBox(-10.0F, -3.0F, 0.0F, 10.0F, 1.0F, 1.0F), PartPose.offsetAndRotation(6.0F, 1.0F, -2.0F,0.0F, -0.5672F, 0.0F));
+        modelPartData.addOrReplaceChild("cube_r2", CubeListBuilder.create().texOffs(0, 0).addBox(-10.0F, -2.5F, 0.0F, 10.0F, 2.0F, 2.0F), PartPose.offsetAndRotation(5.0F, 0.0F, -5.0F,0.0F, -0.1309F, 0.0F));
+        modelPartData.addOrReplaceChild("cube_r3", CubeListBuilder.create().texOffs(0, 0).addBox(-10.0F, -2.0F, 0.0F, 10.0F, 2.0F, 2.0F), PartPose.offsetAndRotation(5.0F, -1.0F, -7.0F,0.0F, 0.2618F, 0.0F));
         return modelData;
     }
 
-//    public void render(MatrixStack matrices, VertexConsumer vertices, int light, int overlay, int color) {
+//    public void render(PoseStack matrices, VertexConsumer vertices, int light, int overlay, int color) {
 //        bb_main.render(matrices, vertices, light, overlay);
 //    }
 }

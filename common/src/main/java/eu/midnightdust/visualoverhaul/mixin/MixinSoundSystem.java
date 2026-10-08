@@ -1,44 +1,24 @@
 package eu.midnightdust.visualoverhaul.mixin;
-
 import eu.midnightdust.visualoverhaul.util.SoundTest;
-import net.minecraft.client.sound.SoundInstance;
-import net.minecraft.client.sound.SoundSystem;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.client.sounds.SoundEngine;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.core.BlockPos;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-
-@Mixin(SoundSystem.class)
+import org.spongepowered.asm.mixin.injection.*;
+import org.spongepowered.asm.mixin.injection.callback.*;
+@Mixin(SoundEngine.class)
 public abstract class MixinSoundSystem {
-
-    @Shadow private boolean started;
-
-    @Unique
-    private BlockPos visualoverhaul$jukeboxPos;
-
-    @Inject(at = @At("TAIL"),method = "play(Lnet/minecraft/client/sound/SoundInstance;)V")
-    public void vo$onPlayRecordSound(SoundInstance soundInstance, CallbackInfo ci) {
-        if (soundInstance != null) {
-            if (soundInstance.getCategory().equals(SoundCategory.RECORDS) && this.started) {
-                visualoverhaul$jukeboxPos = BlockPos.ofFloored(Math.floor(soundInstance.getX()), Math.floor(soundInstance.getY()), Math.floor(soundInstance.getZ()));
-                SoundTest.soundPos.put(visualoverhaul$jukeboxPos, soundInstance.getId());
-            }
-        }
+    @Inject(method="play",at=@At("RETURN"))
+    private void vo$play(SoundInstance sound,CallbackInfoReturnable<SoundEngine.PlayResult> ci) {
+        if(sound.getSource()==SoundSource.RECORDS && ci.getReturnValue()!=SoundEngine.PlayResult.NOT_STARTED)
+            SoundTest.soundPos.put(BlockPos.containing(sound.getX(),sound.getY(),sound.getZ()),sound.getIdentifier());
     }
-
-    @Inject(at = @At("HEAD"),method = "stop(Lnet/minecraft/client/sound/SoundInstance;)V")
-    public void vo$onStopRecordSound(SoundInstance soundInstance, CallbackInfo ci) {
-        if (soundInstance != null) {
-            if (soundInstance.getCategory().equals(SoundCategory.RECORDS)) {
-                visualoverhaul$jukeboxPos = BlockPos.ofFloored(Math.floor(soundInstance.getX()), Math.floor(soundInstance.getY()), Math.floor(soundInstance.getZ()));
-                if (SoundTest.soundPos.containsKey(visualoverhaul$jukeboxPos)) {
-                    SoundTest.soundPos.remove(visualoverhaul$jukeboxPos, soundInstance.getId());
-                }
-            }
-        }
+    @Inject(method="stop(Lnet/minecraft/client/resources/sounds/SoundInstance;)V",at=@At("HEAD"))
+    private void vo$stop(SoundInstance sound,CallbackInfo ci) {
+        if(sound!=null && sound.getSource()==SoundSource.RECORDS)
+            SoundTest.soundPos.remove(BlockPos.containing(sound.getX(),sound.getY(),sound.getZ()),sound.getIdentifier());
     }
+    @Inject(method="stopAll",at=@At("HEAD"))
+    private void vo$clear(CallbackInfo ci) { SoundTest.soundPos.clear(); }
 }

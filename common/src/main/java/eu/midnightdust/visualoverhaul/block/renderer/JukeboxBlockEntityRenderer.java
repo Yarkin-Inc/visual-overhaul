@@ -1,75 +1,53 @@
 package eu.midnightdust.visualoverhaul.block.renderer;
-
-import eu.midnightdust.visualoverhaul.FakeBlocks;
-import eu.midnightdust.visualoverhaul.VisualOverhaulClient;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.blockentity.*;
+import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
+import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.renderer.item.*;
+import net.minecraft.world.item.*;
+import net.minecraft.world.phys.Vec3;
 import eu.midnightdust.visualoverhaul.config.VOConfig;
+import eu.midnightdust.visualoverhaul.FakeBlocks;
 import eu.midnightdust.visualoverhaul.util.SoundTest;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.SideShapeType;
-import net.minecraft.block.entity.JukeboxBlockEntity;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.*;
-import net.minecraft.client.render.block.BlockRenderManager;
-import net.minecraft.client.render.block.entity.BlockEntityRenderer;
-import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.state.property.Properties;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.Util;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.random.Random;
-import net.minecraft.world.BlockRenderView;
-import org.joml.AxisAngle4f;
-import org.joml.Math;
-import org.joml.Quaternionf;
-
-import java.util.Objects;
-
-import static eu.midnightdust.visualoverhaul.VisualOverhaulCommon.id;
-import static eu.midnightdust.visualoverhaul.VisualOverhaulCommon.jukeboxItems;
-
-@Environment(EnvType.CLIENT)
-public class JukeboxBlockEntityRenderer implements BlockEntityRenderer<JukeboxBlockEntity> {
-
-    public JukeboxBlockEntityRenderer(BlockEntityRendererFactory.Context ctx) {}
-
-    @Override
-    public void render(JukeboxBlockEntity blockEntity, float tickDelta, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, int overlay) {
-        if (VOConfig.jukebox) {
-            int lightAbove = WorldRenderer.getLightmapCoordinates(Objects.requireNonNull(blockEntity.getWorld()), blockEntity.getPos().up());
-
-            Identifier discModel = null; // If the sound is stopped or no sound is playing, no model is set //
-
-            // Tries to get the disc using the serverside method
-            if (jukeboxItems.containsKey(blockEntity.getPos()) && !jukeboxItems.get(blockEntity.getPos()).isEmpty()) {
-                discModel = RoundDiscRenderer.getModelId(jukeboxItems.get(blockEntity.getPos()));
-            }
-            // Else gets the record sound played at the position of the jukebox //
-            else if (SoundTest.getSound(blockEntity.getPos()) != null) {
-                // Converts the Sound ID to the item ID of the appropriate disc (minecraft:music_disc.cat -> minecraft:music_disc_cat) //
-                discModel = Identifier.of(String.valueOf(SoundTest.getSound(blockEntity.getPos())).replace(".", "_"));
-            }
-
-            if (discModel != null) {
-                matrices.push();
-
-                matrices.translate(0.5f, 1.03f, 0.5f);
-                matrices.scale(0.75f, 0.75f, 0.75f);
-                matrices.multiply(new Quaternionf(new AxisAngle4f(Math.toRadians(Util.getMeasuringTimeMs() / 9.0f), 0, 1, 0)));
-
-                RoundDiscRenderer.render(discModel, lightAbove, overlay, matrices, vertexConsumers);
-                matrices.pop();
-            }
-            if (VOConfig.jukebox_fake_block && !blockEntity.getWorld().getBlockState(blockEntity.getPos().up()).isSideSolid(blockEntity.getWorld(),blockEntity.getPos().up(), Direction.DOWN, SideShapeType.FULL)) {
-                matrices.push();
-                matrices.translate(0f, 1f, 0f);
-                Identifier blockId = discModel != null ? id("jukebox_top_playing") : id("jukebox_top_stopped");
-                FakeBlocks.renderFakeBlock(blockId, blockEntity.getPos().up(), blockEntity.getWorld(), matrices, vertexConsumers.getBuffer(RenderLayer.getCutout()));
-                matrices.pop();
-            }
-        }
+import static eu.midnightdust.visualoverhaul.VisualOverhaulCommon.*;
+import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.resources.model.geometry.ItemQuads;
+import net.minecraft.world.level.block.entity.JukeboxBlockEntity;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
+public final class JukeboxBlockEntityRenderer implements BlockEntityRenderer<JukeboxBlockEntity,JukeboxBlockEntityRenderer.State> {
+    public JukeboxBlockEntityRenderer(BlockEntityRendererProvider.Context context) {}
+    public static final class State extends BlockEntityRenderState {
+        ItemQuads disc=ItemQuads.EMPTY, top=ItemQuads.EMPTY;
+        float rotation;
+    }
+    public State createRenderState() { return new State(); }
+    public void extractRenderState(JukeboxBlockEntity entity, State state,float tick,Vec3 camera,ModelFeatureRenderer.CrumblingOverlay damage) {
+        BlockEntityRenderer.super.extractRenderState(entity,state,tick,camera,damage);
+        state.disc=ItemQuads.EMPTY; state.top=ItemQuads.EMPTY;
+        var level=entity.getLevel();
+        if(!VOConfig.jukebox || level==null) return;
+        state.lightCoords=net.minecraft.util.LightCoordsUtil.getLightCoords(level,entity.getBlockPos().above());
+        var stack=jukeboxItems.getOrDefault(entity.getBlockPos(),entity.getTheItem());
+        Identifier disc = stack.isEmpty() ? null : RoundDiscRenderer.getModelId(stack);
+        var sound=SoundTest.getSound(entity.getBlockPos());
+        if(disc==null && sound!=null) disc=Identifier.tryParse(sound.toString().replace('.', '_'));
+        if(disc!=null) state.disc=RoundDiscRenderer.getModel(disc);
+        state.rotation=(level.getGameTime()%6480+tick)*50f/9f;
+        if(VOConfig.jukebox_fake_block && !level.getBlockState(entity.getBlockPos().above()).isFaceSturdy(level,entity.getBlockPos().above(),Direction.DOWN))
+            state.top=FakeBlocks.getModel(id(disc==null ? "jukebox_top_stopped" : "jukebox_top_playing"));
+    }
+    public void submit(State state,PoseStack pose,SubmitNodeCollector collector,CameraRenderState camera) {
+        pose.pushPose(); pose.translate(.5f,1.03f,.5f); pose.scale(.75f,.75f,.75f); pose.rotate(Axis.YP.rotationDegrees(state.rotation));
+        pose.translate(-.5f,0,-.5f);
+        submit(state.disc,state,pose,collector); pose.popPose();
+        pose.pushPose(); pose.translate(0,1,0); submit(state.top,state,pose,collector); pose.popPose();
+    }
+    private static void submit(ItemQuads quads,State state,PoseStack pose,SubmitNodeCollector collector) {
+        if(!quads.isEmpty()) collector.submitItem(pose,ItemDisplayContext.NONE,state.lightCoords,OverlayTexture.NO_OVERLAY,0,new int[0],quads,ItemStackRenderState.FoilType.NONE);
     }
 }

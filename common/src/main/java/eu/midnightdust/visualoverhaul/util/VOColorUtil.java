@@ -1,7 +1,7 @@
 package eu.midnightdust.visualoverhaul.util;
 
-import net.minecraft.util.math.ColorHelper;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.ARGB;
+import net.minecraft.util.Mth;
 
 public class VOColorUtil {
     public static int convertRgbToArgb(int rgb, int alpha) {
@@ -12,6 +12,6 @@ public class VOColorUtil {
         return (alpha << 24) | (red << 16) | (green << 8) | blue;
     }
     public static int alphaAndBrightness(float alpha, float brightness) {
-        return ColorHelper.getArgb(MathHelper.floor(alpha*255), MathHelper.floor(brightness*255), MathHelper.floor(brightness*255), MathHelper.floor(brightness*255));
+        return ARGB.color(Mth.floor(alpha*255), Mth.floor(brightness*255), Mth.floor(brightness*255), Mth.floor(brightness*255));
     }
 }

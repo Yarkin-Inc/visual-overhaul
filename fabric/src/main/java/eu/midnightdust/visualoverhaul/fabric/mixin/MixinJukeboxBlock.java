@@ -1,60 +1,26 @@
 package eu.midnightdust.visualoverhaul.fabric.mixin;
-
-import eu.midnightdust.visualoverhaul.VisualOverhaulCommon;
-import eu.midnightdust.visualoverhaul.packet.UpdateItemsPacket;
-import eu.midnightdust.visualoverhaul.util.JukeboxPacketUpdate;
-import io.netty.buffer.Unpooled;
-import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.block.BlockRenderType;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.BlockWithEntity;
-import net.minecraft.block.JukeboxBlock;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.block.entity.BlockEntityTicker;
-import net.minecraft.block.entity.BlockEntityType;
-import net.minecraft.block.entity.JukeboxBlockEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.network.PacketByteBuf;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.collection.DefaultedList;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
-import org.jetbrains.annotations.Nullable;
+import eu.midnightdust.visualoverhaul.fabric.InventorySync;
+import static eu.midnightdust.visualoverhaul.VisualOverhaulCommon.*;
+import net.minecraft.world.level.block.entity.JukeboxBlockEntity;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.Level;
+import net.minecraft.server.level.ServerLevel;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
-
-import java.util.stream.Stream;
-
-@Mixin(JukeboxBlock.class)
-public abstract class MixinJukeboxBlock extends BlockWithEntity {
-
-    protected MixinJukeboxBlock(Settings settings) {
-        super(settings);
+import org.spongepowered.asm.mixin.injection.*;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+@Mixin(JukeboxBlockEntity.class)
+public abstract class MixinJukeboxBlock {
+    @Unique private final InventorySync vo$sync = new InventorySync();
+    @Inject(method="tick", at=@At("TAIL"))
+    private static void vo$sync(Level level, BlockPos pos, BlockState state, JukeboxBlockEntity entity, CallbackInfo ci) {
+        if (level instanceof ServerLevel) ((MixinJukeboxBlock)(Object)entity).vo$sync.tick(entity, entity, UPDATE_TYPE_RECORD);
     }
-
-    @Override
-    public BlockRenderType getRenderType(BlockState state) {
-        return BlockRenderType.MODEL;
-    }
-
-    @Nullable
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-        return world.isClient() ? null : validateTicker(type, BlockEntityType.JUKEBOX, MixinJukeboxBlock::visualoverhaul$tick);
-    }
-    @Unique
-    private static void visualoverhaul$tick(World world, BlockPos pos, BlockState state, JukeboxBlockEntity blockEntity) {
-        if (!world.isClient && (JukeboxPacketUpdate.invUpdate || world.getPlayers().size() != JukeboxPacketUpdate.playerUpdate)) {
-            Stream<ServerPlayerEntity> watchingPlayers = PlayerLookup.tracking(blockEntity).stream();
-
-            watchingPlayers.forEach(player -> {
-                if (VisualOverhaulCommon.playersWithMod.contains(player.getUuid())) {
-                    ServerPlayNetworking.send(player, new UpdateItemsPacket(VisualOverhaulCommon.UPDATE_TYPE_RECORD, pos, DefaultedList.ofSize(1, blockEntity.getStack())));
-                }
-            });
-            //JukeboxPacketUpdate.invUpdate = false;
-        }
-        JukeboxPacketUpdate.playerUpdate = world.getPlayers().size();
+    // Empty jukeboxes have no vanilla ticker: send removal immediately.
+    @Inject(method="setTheItem", at=@At("TAIL"))
+    private void vo$itemChanged(net.minecraft.world.item.ItemStack stack, CallbackInfo ci) {
+        var entity=(JukeboxBlockEntity)(Object)this;
+        if(entity.getLevel() instanceof ServerLevel) vo$sync.tick(entity,entity,UPDATE_TYPE_RECORD);
     }
 }
-

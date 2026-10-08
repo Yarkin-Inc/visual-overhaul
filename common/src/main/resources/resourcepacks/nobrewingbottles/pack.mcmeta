@@ -1,7 +1,13 @@
 {
   "pack": {
-    "pack_format": 15,
-    "supported_formats": [15, 99],
-    "description": "§2Removes the bottles from the brewing stand"
+    "description": "\u00a72Removes the bottles from the brewing stand",
+    "min_format": [
+      97,
+      1
+    ],
+    "max_format": [
+      97,
+      1
+    ]
   }
 }

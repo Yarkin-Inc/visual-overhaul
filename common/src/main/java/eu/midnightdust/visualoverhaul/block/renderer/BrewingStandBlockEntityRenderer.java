@@ -1,72 +1,37 @@
 package eu.midnightdust.visualoverhaul.block.renderer;
-
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.blockentity.*;
+import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
+import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.renderer.item.*;
+import net.minecraft.world.item.*;
+import net.minecraft.world.phys.Vec3;
 import eu.midnightdust.visualoverhaul.config.VOConfig;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import net.minecraft.block.entity.BrewingStandBlockEntity;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.WorldRenderer;
-import net.minecraft.client.render.block.entity.BlockEntityRenderer;
-import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.ModelTransformationMode;
-import org.joml.AxisAngle4f;
-import org.joml.Math;
-import org.joml.Quaternionf;
-
-import java.util.Objects;
-
-@Environment(EnvType.CLIENT)
-public class BrewingStandBlockEntityRenderer implements BlockEntityRenderer<BrewingStandBlockEntity> {
-    private static final Quaternionf degrees45 = new Quaternionf(new AxisAngle4f(Math.toRadians(45), 0, 1, 0));
-    private static final Quaternionf degrees180 = new Quaternionf(new AxisAngle4f(Math.toRadians(180), 0, 1, 0));
-    private static final Quaternionf degrees315 = new Quaternionf(new AxisAngle4f(Math.toRadians(315), 0, 1, 0));
-
-    public BrewingStandBlockEntityRenderer(BlockEntityRendererFactory.Context ctx) {
+import net.minecraft.world.level.block.entity.BrewingStandBlockEntity;
+public final class BrewingStandBlockEntityRenderer implements BlockEntityRenderer<BrewingStandBlockEntity, BrewingStandBlockEntityRenderer.State> {
+    private final ItemModelResolver items;
+    public BrewingStandBlockEntityRenderer(BlockEntityRendererProvider.Context context) { items = context.itemModelResolver(); }
+    public static final class State extends BlockEntityRenderState {
+        final ItemStackRenderState[] bottles = {new ItemStackRenderState(), new ItemStackRenderState(), new ItemStackRenderState()};
     }
-
-
-    @Override
-    public void render(BrewingStandBlockEntity blockEntity, float tickDelta, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, int overlay) {
-
-        if (VOConfig.brewingstand) {
-            int lightAtBlock = WorldRenderer.getLightmapCoordinates(Objects.requireNonNull(blockEntity.getWorld()), blockEntity.getPos());
-            ItemStack item1 = blockEntity.getStack(0);
-            ItemStack item2 = blockEntity.getStack(1);
-            ItemStack item3 = blockEntity.getStack(2);
-
-            if (!item1.isEmpty()) {
-                matrices.push();
-
-                matrices.translate(0.86f, 0.23f, 0.5f);
-                matrices.scale(1.15f, 1.15f, 1.15f);
-                matrices.multiply(degrees180);
-                MinecraftClient.getInstance().getItemRenderer().renderItem(item1, ModelTransformationMode.GROUND, lightAtBlock, overlay, matrices, vertexConsumers, blockEntity.getWorld(), 0);
-
-                matrices.pop();
-            }
-            if (!item2.isEmpty()) {
-                matrices.push();
-
-                matrices.multiply(degrees315);
-                matrices.translate(0.32f, 0.23f, 0f);
-                matrices.scale(1.15f, 1.15f, 1.15f);
-                MinecraftClient.getInstance().getItemRenderer().renderItem(item2, ModelTransformationMode.GROUND, lightAtBlock, overlay, matrices, vertexConsumers, blockEntity.getWorld(), 0);
-
-                matrices.pop();
-            }
-            if (!item3.isEmpty()) {
-                matrices.push();
-
-                matrices.multiply(degrees45);
-                matrices.translate(-0.39f, 0.23f, 0.705f);
-                matrices.scale(1.15f, 1.15f, 1.15f);
-                MinecraftClient.getInstance().getItemRenderer().renderItem(item3, ModelTransformationMode.GROUND, lightAtBlock, overlay, matrices, vertexConsumers, blockEntity.getWorld(), 0);
-
-                matrices.pop();
-            }
+    public State createRenderState() { return new State(); }
+    public void extractRenderState(BrewingStandBlockEntity entity, State state, float tick, Vec3 camera, ModelFeatureRenderer.CrumblingOverlay damage) {
+        BlockEntityRenderer.super.extractRenderState(entity, state, tick, camera, damage);
+        for (int i=0; i<3; i++) items.updateForTopItem(state.bottles[i], VOConfig.brewingstand ? entity.getItem(i) : ItemStack.EMPTY, ItemDisplayContext.GROUND, entity.getLevel(), null, i);
+    }
+    public void submit(State state, PoseStack pose, SubmitNodeCollector collector, CameraRenderState camera) {
+        for (int i=0; i<3; i++) {
+            pose.pushPose();
+            if (i==0) { pose.translate(.86f,.23f,.5f); pose.rotate(Axis.YP.rotationDegrees(180)); }
+            if (i==1) { pose.rotate(Axis.YP.rotationDegrees(315)); pose.translate(.32f,.23f,0); }
+            if (i==2) { pose.rotate(Axis.YP.rotationDegrees(45)); pose.translate(-.39f,.23f,.705f); }
+            pose.scale(1.15f,1.15f,1.15f);
+            state.bottles[i].submit(pose,collector,state.lightCoords,OverlayTexture.NO_OVERLAY,0);
+            pose.popPose();
         }
     }
 }

@@ -1,62 +1,20 @@
 package eu.midnightdust.visualoverhaul.fabric.mixin;
-
-import eu.midnightdust.visualoverhaul.VisualOverhaulCommon;
-import eu.midnightdust.visualoverhaul.packet.UpdateItemsPacket;
-import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.entity.BlockEntityType;
-import net.minecraft.block.entity.BrewingStandBlockEntity;
-import net.minecraft.block.entity.LockableContainerBlockEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.collection.DefaultedList;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import eu.midnightdust.visualoverhaul.fabric.InventorySync;
+import static eu.midnightdust.visualoverhaul.VisualOverhaulCommon.*;
+import net.minecraft.world.level.block.entity.BrewingStandBlockEntity;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.Level;
+import net.minecraft.server.level.ServerLevel;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
-import java.util.stream.Stream;
-
 @Mixin(BrewingStandBlockEntity.class)
-public abstract class MixinBrewingStandBlockEntity extends LockableContainerBlockEntity {
-
-    @Shadow private DefaultedList<ItemStack> inventory;
-    @Unique
-    private static boolean visualoverhaul$invUpdate = true;
-    @Unique
-    private static int visualoverhaul$playerUpdate = -1;
-
-    protected MixinBrewingStandBlockEntity(BlockEntityType<?> blockEntityType, BlockPos blockPos, BlockState blockState) {
-        super(blockEntityType, blockPos, blockState);
-    }
-
-    @Inject(at = @At("TAIL"), method = "tick")
-    private static void tick(World world, BlockPos pos, BlockState state, BrewingStandBlockEntity blockEntity, CallbackInfo ci) {
-        if (!world.isClient && (visualoverhaul$invUpdate || world.getPlayers().size() != visualoverhaul$playerUpdate)) {
-            Stream<ServerPlayerEntity> watchingPlayers = PlayerLookup.tracking(blockEntity).stream();
-            DefaultedList<ItemStack> inv = DefaultedList.ofSize(5, ItemStack.EMPTY);
-            for (int i = 0; i <= 4; i++) {
-                inv.set(i, blockEntity.getStack(i));
-            }
-
-            watchingPlayers.forEach(player -> {
-                if (VisualOverhaulCommon.playersWithMod.contains(player.getUuid())) {
-                    ServerPlayNetworking.send(player, new UpdateItemsPacket(VisualOverhaulCommon.UPDATE_TYPE_POTION_BOTTLES, pos, inv));
-                }
-            });
-            //visualoverhaul$invUpdate = false;
-        }
-        visualoverhaul$playerUpdate = world.getPlayers().size();
-    }
-
-    @Inject(at = @At("RETURN"), method = "getHeldStacks")
-    private void vo$onInventoryUpdate(CallbackInfoReturnable<DefaultedList<ItemStack>> cir) {
-        visualoverhaul$invUpdate = true;
+public abstract class MixinBrewingStandBlockEntity {
+    @Unique private final InventorySync vo$sync = new InventorySync();
+    @Inject(method="serverTick", at=@At("TAIL"))
+    private static void vo$sync(ServerLevel level, BlockPos pos, BlockState state, BrewingStandBlockEntity entity, CallbackInfo ci) {
+        if (level instanceof ServerLevel) ((MixinBrewingStandBlockEntity)(Object)entity).vo$sync.tick(entity, entity, UPDATE_TYPE_POTION_BOTTLES);
     }
 }

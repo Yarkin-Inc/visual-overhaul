@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "visualoverhaul_test",
+  "version": "1.0.0",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-client-gametest": [
+      "eu.midnightdust.visualoverhaul.VisualOverhaulGameTest"
+    ]
+  }
+}

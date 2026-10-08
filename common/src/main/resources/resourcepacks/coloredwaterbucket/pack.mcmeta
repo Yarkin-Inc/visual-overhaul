@@ -1,7 +1,13 @@
 {
   "pack": {
-    "pack_format": 15,
-    "supported_formats": [15, 99],
-    "description": "§2Makes the water bucket respect biome colors"
+    "description": "\u00a72Makes the water bucket respect biome colors",
+    "min_format": [
+      97,
+      1
+    ],
+    "max_format": [
+      97,
+      1
+    ]
   }
 }

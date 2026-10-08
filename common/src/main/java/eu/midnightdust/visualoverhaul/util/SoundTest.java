@@ -2,8 +2,8 @@ package eu.midnightdust.visualoverhaul.util;
 
 import com.google.common.collect.Maps;
 import eu.midnightdust.visualoverhaul.config.VOConfig;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.resources.Identifier;
+import net.minecraft.core.BlockPos;
 
 import java.util.Map;
 

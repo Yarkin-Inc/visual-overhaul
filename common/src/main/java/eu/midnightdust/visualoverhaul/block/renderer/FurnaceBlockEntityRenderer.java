@@ -1,98 +1,69 @@
 package eu.midnightdust.visualoverhaul.block.renderer;
-
-import eu.midnightdust.visualoverhaul.block.model.FurnaceWoodenPlanksModel;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.blockentity.*;
+import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
+import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.renderer.item.*;
+import net.minecraft.world.item.*;
+import net.minecraft.world.phys.Vec3;
 import eu.midnightdust.visualoverhaul.config.VOConfig;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import net.minecraft.block.*;
-import net.minecraft.block.entity.AbstractFurnaceBlockEntity;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.WorldRenderer;
-import net.minecraft.client.render.block.entity.BlockEntityRenderer;
-import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
-import net.minecraft.client.texture.Sprite;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.ModelTransformationMode;
-import net.minecraft.registry.tag.ItemTags;
-import net.minecraft.util.Identifier;
-import org.joml.AxisAngle4f;
-import org.joml.Math;
-import org.joml.Quaternionf;
-
-import java.util.Objects;
-
-@Environment(EnvType.CLIENT)
-public class FurnaceBlockEntityRenderer<E extends AbstractFurnaceBlockEntity> implements BlockEntityRenderer<E> {
-    private static final Quaternionf degrees90x = new Quaternionf(new AxisAngle4f(Math.toRadians(90), 1, 0, 0));
+import eu.midnightdust.visualoverhaul.block.model.FurnaceWoodenPlanksModel;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.resources.Identifier;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.world.level.block.*;
+import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
+public final class FurnaceBlockEntityRenderer<E extends AbstractFurnaceBlockEntity> implements BlockEntityRenderer<E,FurnaceBlockEntityRenderer.State> {
+    private final ItemModelResolver items;
     private final FurnaceWoodenPlanksModel planks;
-
-    public FurnaceBlockEntityRenderer(BlockEntityRendererFactory.Context ctx) {
-        this.planks = new FurnaceWoodenPlanksModel(ctx.getLayerModelPart(FurnaceWoodenPlanksModel.WOODEN_PLANKS_MODEL_LAYER));
+    public FurnaceBlockEntityRenderer(BlockEntityRendererProvider.Context context) {
+        items = context.itemModelResolver();
+        planks = new FurnaceWoodenPlanksModel(context.bakeLayer(FurnaceWoodenPlanksModel.WOODEN_PLANKS_MODEL_LAYER));
     }
-
-    public void render(E blockEntity, float tickDelta, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, int overlay) {
-        if (VOConfig.furnace && blockEntity != null) {
-            BlockState blockState = blockEntity.getCachedState();
-            int lightAtBlock = WorldRenderer.getLightmapCoordinates(Objects.requireNonNull(blockEntity.getWorld()), blockEntity.getPos().offset(blockState.get(AbstractFurnaceBlock.FACING)));
-            ItemStack input = blockEntity.getStack(0);
-            ItemStack fuel = blockEntity.getStack(1);
-            ItemStack output = blockEntity.getStack(2);
-            float angle = (blockState.get(AbstractFurnaceBlock.FACING)).getRotationQuaternion().angle();
-
-            if(!input.isEmpty() || !output.isEmpty()) {
-                matrices.push();
-
-                matrices.translate(0.5f, 0.58f, 0.5f);
-                if (blockEntity.getCachedState().getBlock().equals(Blocks.SMOKER)) matrices.translate(0f, -0.06f, 0f);
-                if (blockEntity.getCachedState().getBlock().equals(Blocks.BLAST_FURNACE)) matrices.translate(0f, -0.25f, 0f);
-                matrices.scale(1f, 1f, 1f);
-                matrices.multiply(new Quaternionf(new AxisAngle4f(Math.toRadians(angle * 3 + 180), 0, 1, 0)));
-                matrices.translate(0.0f, 0.0f, -0.4f);
-                matrices.multiply(degrees90x);
-                MinecraftClient.getInstance().getItemRenderer().renderItem(input.isEmpty() ? output : input, ModelTransformationMode.GROUND, lightAtBlock, overlay, matrices, vertexConsumers, blockEntity.getWorld(), 0);
-
-
-                matrices.pop();
-            }
-            if (!fuel.isEmpty() && !fuel.isIn(ItemTags.LOGS_THAT_BURN) && !fuel.isIn(ItemTags.PLANKS)) {
-                matrices.push();
-
-                matrices.translate(0.5f, 0.08f, 0.5f);
-                if (blockEntity.getCachedState().getBlock().equals(Blocks.SMOKER)) matrices.translate(0f, 0.06f, 0f);
-                if (blockEntity.getCachedState().getBlock().equals(Blocks.BLAST_FURNACE)) matrices.translate(0f, 0.24f, 0f);
-                matrices.scale(1f, 1f, 1f);
-                matrices.multiply(new Quaternionf(new AxisAngle4f(Math.toRadians(angle * 3 + 180), 0, 1, 0)));
-                matrices.translate(0.0f, 0.0f, -0.4f);
-                matrices.multiply(degrees90x);
-                MinecraftClient.getInstance().getItemRenderer().renderItem(fuel, ModelTransformationMode.GROUND, lightAtBlock, overlay, matrices, vertexConsumers, blockEntity.getWorld(), 0);
-
-                matrices.pop();
-            }
-            else if (!fuel.isEmpty()) {
-                matrices.push();
-                BlockState state = Block.getBlockFromItem(fuel.getItem()).getDefaultState();
-                Sprite texture = MinecraftClient.getInstance().getBlockRenderManager().getModel(state).getParticleSprite();
-                VertexConsumer vertexConsumer = vertexConsumers.getBuffer(RenderLayer.getEntityCutoutNoCull(spriteToTexture(texture)));
-
-                matrices.translate(0.5f, -1.3f, 0.5f);
-                if (blockEntity.getCachedState().getBlock().equals(Blocks.SMOKER)) matrices.translate(0f, 0.06f, 0f);
-                if (blockEntity.getCachedState().getBlock().equals(Blocks.BLAST_FURNACE)) matrices.translate(0f, 0.2f, 0f);
-                matrices.scale(1f, 1f, 1f);
-
-
-                matrices.multiply(new Quaternionf(new AxisAngle4f(Math.toRadians(angle * 3 + 180), 0, 1, 0)));
-                planks.getPart().render(matrices, vertexConsumer, lightAtBlock, overlay);
-                matrices.pop();
-            }
+    public static final class State extends BlockEntityRenderState {
+        final ItemStackRenderState food = new ItemStackRenderState(), fuel = new ItemStackRenderState();
+        Identifier woodTexture;
+        float yaw, foodY, fuelY, woodY;
+    }
+    public State createRenderState() { return new State(); }
+    public void extractRenderState(E entity, State state, float tick, Vec3 camera, ModelFeatureRenderer.CrumblingOverlay damage) {
+        BlockEntityRenderer.super.extractRenderState(entity,state,tick,camera,damage);
+        var block = entity.getBlockState();
+        var facing = block.getValue(AbstractFurnaceBlock.FACING);
+        state.yaw = 180-facing.toYRot();
+        boolean smoker = block.is(Blocks.SMOKER), blast = block.is(Blocks.BLAST_FURNACE);
+        state.foodY = .58f-(smoker ? .06f : blast ? .25f : 0);
+        state.fuelY = .08f+(smoker ? .06f : blast ? .24f : 0);
+        state.woodY = -1.3f+(smoker ? .06f : blast ? .2f : 0);
+        if(entity.getLevel()!=null) state.lightCoords=net.minecraft.util.LightCoordsUtil.getLightCoords(entity.getLevel(),entity.getBlockPos().relative(facing));
+        var food = VOConfig.furnace ? (entity.getItem(0).isEmpty() ? entity.getItem(2) : entity.getItem(0)) : ItemStack.EMPTY;
+        var fuel = VOConfig.furnace ? entity.getItem(1) : ItemStack.EMPTY;
+        state.woodTexture = null;
+        if (!fuel.isEmpty() && (fuel.is(ItemTags.LOGS_THAT_BURN) || fuel.is(ItemTags.PLANKS))) {
+            var sprite = Minecraft.getInstance().getModelManager().getBlockStateModelSet().get(Block.byItem(fuel.getItem()).defaultBlockState()).particleMaterial().sprite();
+            state.woodTexture = sprite.contents().name().withPath(p -> "textures/"+p+".png");
         }
-
+        items.updateForTopItem(state.food,food,ItemDisplayContext.GROUND,entity.getLevel(),null,0);
+        items.updateForTopItem(state.fuel,state.woodTexture == null ? fuel : ItemStack.EMPTY,ItemDisplayContext.GROUND,entity.getLevel(),null,1);
     }
-    public static Identifier spriteToTexture(Sprite sprite) {
-        String texture = sprite.getContents().getId().getPath();
-        return Identifier.of(sprite.getAtlasId().getNamespace(), "textures/" + texture + ".png");
+    public void submit(State state, PoseStack pose, SubmitNodeCollector collector, CameraRenderState camera) {
+        submitItem(state.food,state.foodY,state,pose,collector);
+        submitItem(state.fuel,state.fuelY,state,pose,collector);
+        if(state.woodTexture != null) {
+            pose.pushPose(); pose.translate(.5f,state.woodY,.5f); pose.rotate(Axis.YP.rotationDegrees(state.yaw));
+            collector.submitModelPart(planks.getPart(),pose,RenderTypes.entityCutout(state.woodTexture),state.lightCoords,OverlayTexture.NO_OVERLAY,null);
+            pose.popPose();
+        }
+    }
+    private static void submitItem(ItemStackRenderState item,float y,State state,PoseStack pose,SubmitNodeCollector collector) {
+        pose.pushPose(); pose.translate(.5f,y,.5f); pose.rotate(Axis.YP.rotationDegrees(state.yaw));
+        pose.translate(0,0,-.4f); pose.rotate(Axis.XP.rotationDegrees(90));
+        item.submit(pose,collector,state.lightCoords,OverlayTexture.NO_OVERLAY,0); pose.popPose();
     }
 }

@@ -11,11 +11,11 @@ public class VisualOverhaulFabric implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        PayloadTypeRegistry.playC2S().register(HelloPacket.PACKET_ID, HelloPacket.codec);
-        PayloadTypeRegistry.playS2C().register(UpdateItemsPacket.PACKET_ID, UpdateItemsPacket.codec);
+        PayloadTypeRegistry.serverboundPlay().register(HelloPacket.PACKET_ID, HelloPacket.codec);
+        PayloadTypeRegistry.clientboundPlay().register(UpdateItemsPacket.PACKET_ID, UpdateItemsPacket.codec);
 
-        ServerPlayNetworking.registerGlobalReceiver(HelloPacket.PACKET_ID, (payload, context) -> playersWithMod.add(context.player().getUuid()));
-        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> playersWithMod.remove(handler.getPlayer().getUuid()));
+        ServerPlayNetworking.registerGlobalReceiver(HelloPacket.PACKET_ID, (payload, context) -> playersWithMod.add(context.player().getUUID()));
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> playersWithMod.remove(handler.getPlayer().getUUID()));
     };
 
 }
